@@ -1,0 +1,58 @@
+#!/bin/bash
+##############################
+# Written by Amandeep
+# 07/2014
+##############################
+
+# GLOBAL Variables
+
+EMAIL="foo@foo.com"
+MAX_DELAY_MINUTES=150
+EMAIL_TMP_FILE=/tmp/check_vols.tmp
+
+# FUNCTIONS
+
+get_lag_for_volume () {
+vol=$1
+
+echo "Calculating lag for Volume $vol"
+snap_time=`grep $vol /tmp/vols.txt| awk '{print $2}'`
+
+H=`echo $snap_time | cut -f1 -d":"`
+M=`echo $snap_time | cut -f2 -d":"`
+
+let TOTAL_LAG_MINUTES=$H*60+$M
+
+echo -e "The lag for $vol is $TOTAL_LAG_MINUTES minutes\n"
+
+}
+##############################
+# MAIN
+##############################
+# Empty email tmp file
+:>$EMAIL_TMP_FILE
+:>/tmp/vols.txt
+
+echo -e "Welcome\n"
+echo "Checking snapmirror status in `cat /home/asingh/filers`"
+
+for i in `cat /home/asingh/filers`; do
+ssh $i snapmirror status  | awk -F" " '{print $1"\t"$4}' >> /tmp/vols.txt;
+done
+
+for volume in `cat /tmp/vols.txt | awk '{print $1}'`
+do
+get_lag_for_volume $volume
+
+if [[ $TOTAL_LAG_MINUTES -gt $MAX_DELAY_MINUTES ]]
+then # LAG is LARGER than the MAX valu
+echo "ERROR in volume $volume"
+echo -e "Lag in volume $volume is $TOTAL_LAG_MINUTES. Its larger than the MAX value ($MAX_DELAY_MINUTES) \n" >> ${EMAIL_TMP_FILE}
+else # Lag is Smaller – Everything is OK
+echo "Lag for volume $volume is OK…"
+fi
+done
+
+# Send error report
+if [ `wc -l ${EMAIL_TMP_FILE} | awk '{print$1}'` -gt 0 ]; then
+cat ${EMAIL_TMP_FILE} | mutt -s "Snapmirror_Lag_Detected" $EMAIL
