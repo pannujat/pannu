@@ -34,9 +34,9 @@ echo -e "The lag for $vol is $TOTAL_LAG_MINUTES minutes\n"
 :>/tmp/vols.txt
 
 echo -e "Welcome\n"
-echo "Checking snapmirror status in `cat /home/asingh/filers`"
+echo "Checking snapmirror status in `cat /home/filers`"
 
-for i in `cat /home/asingh/filers`; do
+for i in `cat /home/filers`; do
 ssh $i snapmirror status  | awk -F" " '{print $1"\t"$4}' >> /tmp/vols.txt;
 done
 
